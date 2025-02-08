@@ -28,15 +28,11 @@ impl Status {
     }
 }
 
-fn get_data_from_db(ids: &[String]) -> Result<HashMap<String, Status>, Error> {
+fn get_data_from_db(client: &mut Client, ids: &[String]) -> Result<HashMap<String, Status>, Error> {
     // Create map to store the stuff
     let mut status_map = HashMap::<String, Status>::new();
-    let conn_str = "host=localhost user=postgres password=password dbname=rust-cache-impl";
 
-    let mut client = Client::connect(conn_str, NoTls)?;
-
-    client.execute("SET search_path TO testdata", &[])?;
-
+    let mut counter = 0;
     for row in client.query(
         "SELECT tasks.id, tasks.status FROM tasks WHERE tasks.status IN ('Initialised', 'InProgress') OR tasks.id = ANY($1)",
         &[&ids],
@@ -47,7 +43,10 @@ fn get_data_from_db(ids: &[String]) -> Result<HashMap<String, Status>, Error> {
         let status = Status::from_str(&status_str);
 
         status_map.insert(id, status);
+        counter += 1;
     }
+
+    println!("found {} relevant rows", counter);
 
     Ok(status_map)
 }
@@ -56,8 +55,13 @@ fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
     map.keys().cloned().collect()
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     println!("starting to check cache and stay up to date");
+
+    let conn_str = "host=localhost user=postgres password=password dbname=rust-cache-impl";
+    let mut client = Client::connect(conn_str, NoTls)?;
+    client.execute("SET search_path TO testdata", &[])?;
+    println!("initialised db client");
 
     let mut cache = HashMap::<String, Status>::new();
 
@@ -67,7 +71,7 @@ fn main() {
         println!("starting");
 
         let known_ids = convert_keys_to_array(&cache);
-        match get_data_from_db(&known_ids) {
+        match get_data_from_db(&mut client, &known_ids) {
             Ok(db_results) => {
                 for (k, v) in &db_results {
                     if cache.contains_key(k) {
@@ -127,5 +131,6 @@ fn main() {
         }
     }
 
-    println!("completing")
+    println!("completing");
+    Ok(())
 }

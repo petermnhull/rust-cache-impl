@@ -1,5 +1,4 @@
 use postgres::{Client, Error, NoTls};
-use std::fmt;
 use std::{collections::HashMap, thread::sleep, time::Duration};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -19,15 +18,12 @@ impl Status {
             _ => Status::Unknown,
         }
     }
-}
-
-impl fmt::Display for Status {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn to_str(&self) -> &'static str {
         match *self {
-            Status::Initialised => write!(f, "Initialised"),
-            Status::InProgress => write!(f, "Progressing"),
-            Status::Finished => write!(f, "Finished"),
-            Status::Unknown => write!(f, "Unknown"),
+            Status::Initialised => "Initialised",
+            Status::InProgress => "InProgress",
+            Status::Finished => "Finished",
+            Status::Unknown => "Unknown",
         }
     }
 }
@@ -79,20 +75,21 @@ fn main() {
                         if *v == existing_value {
                             println!("key {} matches, doing nothing", k);
                         } else {
+                            println!("{} changed to {}", k, v.to_str());
                             match *v {
                                 Status::Initialised => {
-                                    println!("{} changed to Initialised", k);
+                                    println!("changing {} in cache to {}", k, v.to_str());
                                     cache.insert(k.clone(), v.clone());
                                 }
                                 Status::InProgress => {
-                                    println!("{} db changed to InProgress", k);
+                                    println!("changing {} in cache to {}", k, v.to_str());
                                     cache.insert(k.clone(), v.clone());
 
                                     // Run mock side-effect for thing in progress
                                     println!("doing a thing for {}", k)
                                 }
                                 Status::Finished => {
-                                    println!("{} db is Finished, removing from cache", k);
+                                    println!("removing {} from cache", k);
                                     cache.remove(k);
                                 }
                                 Status::Unknown => {
@@ -101,13 +98,14 @@ fn main() {
                             }
                         }
                     } else {
+                        println!("{} identified in state {}", k, v.to_str());
                         match *v {
                             Status::Initialised => {
-                                println!("{} initially identified to Initialised", k);
+                                println!("inserting {} as {}", k, v.to_str());
                                 cache.insert(k.clone(), v.clone());
                             }
                             Status::InProgress => {
-                                println!("{} initially identified as InProgress", k);
+                                println!("inserting {} as {}", k, v.to_str());
                                 cache.insert(k.clone(), v.clone());
 
                                 // Run mock side-effect for thing in progress

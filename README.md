@@ -4,6 +4,7 @@ Implementation of a service in Rust for keeping a cache up to date and running s
 
 ## Example Run
 
-This shows how an external process updating state in a database gets propagated to the cache, including running side-effects and removing unneeded data.
+This shows how when the database is updated by an external process, the changes get propagated to the cache and relevant side-effects take place (such as "Finished" tasks getting removed from the cache).
 
-https://github.com/user-attachments/assets/169a6fc0-41b4-41f9-9fb9-fc6aaa236976
+https://github.com/user-attachments/assets/337d61c3-963a-4d7e-9ab3-4dd1d46442cd
+

@@ -32,7 +32,7 @@ impl fmt::Display for Status {
     }
 }
 
-fn get_data_from_db() -> Result<HashMap<String, Status>, Error> {
+fn get_data_from_db(ids: &[String]) -> Result<HashMap<String, Status>, Error> {
     // Create map to store the stuff
     let mut status_map = HashMap::<String, Status>::new();
     let conn_str = "host=localhost user=postgres password=password dbname=rust-cache-impl";
@@ -41,7 +41,10 @@ fn get_data_from_db() -> Result<HashMap<String, Status>, Error> {
 
     client.execute("SET search_path TO testdata", &[])?;
 
-    for row in client.query("SELECT tasks.id, tasks.status FROM tasks", &[])? {
+    for row in client.query(
+        "SELECT tasks.id, tasks.status FROM tasks WHERE tasks.status IN ('Initialised', 'InProgress') OR tasks.id = ANY($1)",
+        &[&ids],
+    )? {
         let id: String = row.get(0);
         let status_str: String = row.get(1);
 
@@ -51,6 +54,10 @@ fn get_data_from_db() -> Result<HashMap<String, Status>, Error> {
     }
 
     Ok(status_map)
+}
+
+fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
+    map.keys().cloned().collect()
 }
 
 fn main() {
@@ -63,9 +70,10 @@ fn main() {
         sleep(Duration::from_secs(2));
         println!("starting");
 
-        match get_data_from_db() {
-            Ok(status_map) => {
-                for (k, v) in &status_map {
+        let known_ids = convert_keys_to_array(&cache);
+        match get_data_from_db(&known_ids) {
+            Ok(db_results) => {
+                for (k, v) in &db_results {
                     if cache.contains_key(k) {
                         let existing_value = cache.get(k).copied().unwrap();
                         if *v == existing_value {

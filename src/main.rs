@@ -44,7 +44,6 @@ fn get_data_from_db() -> Result<HashMap<String, Status>, Error> {
     for row in client.query("SELECT tasks.id, tasks.status FROM tasks", &[])? {
         let id: String = row.get(0);
         let status_str: String = row.get(1);
-        println!("id: {}, status: {}", id, status_str);
 
         let status = Status::from_str(&status_str);
 
@@ -67,28 +66,52 @@ fn main() {
         match get_data_from_db() {
             Ok(status_map) => {
                 for (k, v) in &status_map {
-                    println!("{}: {}", k, v);
-
                     if cache.contains_key(k) {
                         let existing_value = cache.get(k).copied().unwrap();
                         if *v == existing_value {
                             println!("key {} matches, doing nothing", k);
                         } else {
-                            // TODO:
-                            // - If Initialised, add to the cache
-                            // - If InProgress, upsert to the cache and do a side-effect
-                            // - If Finished, remove from the cache
-                            println!("updating {} to match db", k);
-                            cache.insert(k.clone(), v.clone());
+                            match *v {
+                                Status::Initialised => {
+                                    println!("{} changed to Initialised", k);
+                                    cache.insert(k.clone(), v.clone());
+                                }
+                                Status::InProgress => {
+                                    println!("{} db changed to InProgress", k);
+                                    cache.insert(k.clone(), v.clone());
+
+                                    // Run mock side-effect for thing in progress
+                                    println!("doing a thing for {}", k)
+                                }
+                                Status::Finished => {
+                                    println!("{} db is Finished, removing from cache", k);
+                                    cache.remove(k);
+                                }
+                                Status::Unknown => {
+                                    println!("unknown value in db, ignoring")
+                                }
+                            }
                         }
                     } else {
-                        println!("new key {}, inserting", k);
-                        cache.insert(k.clone(), v.clone());
+                        match *v {
+                            Status::Initialised => {
+                                println!("{} initially identified to Initialised", k);
+                                cache.insert(k.clone(), v.clone());
+                            }
+                            Status::InProgress => {
+                                println!("{} initially identified as InProgress", k);
+                                cache.insert(k.clone(), v.clone());
 
-                        // TODO:
-                        // - If Initialised, do nothing
-                        // - If InProgress, add to the cache and do a side-effect
-                        // - If Finished, remove from the cache
+                                // Run mock side-effect for thing in progress
+                                println!("doing a thing for {}", k)
+                            }
+                            Status::Finished => {
+                                println!("{} is set to Finished, can ignore", k);
+                            }
+                            Status::Unknown => {
+                                println!("unknown value in db, ignoring");
+                            }
+                        }
                     }
                 }
             }

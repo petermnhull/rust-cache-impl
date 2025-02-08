@@ -41,7 +41,7 @@ fn get_data_from_db() -> Result<HashMap<String, Status>, Error> {
 
     client.execute("SET search_path TO testdata", &[])?;
 
-    for row in client.query("SELECT newtable.id, newtable.status FROM newtable", &[])? {
+    for row in client.query("SELECT tasks.id, tasks.status FROM tasks", &[])? {
         let id: String = row.get(0);
         let status_str: String = row.get(1);
         println!("id: {}, status: {}", id, status_str);

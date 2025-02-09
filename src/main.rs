@@ -51,6 +51,24 @@ fn get_data_from_db(client: &mut Client, ids: &[String]) -> Result<HashMap<Strin
     Ok(status_map)
 }
 
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{convert_keys_to_array, Status};
+
+    #[test]
+    fn test_convert_keys_to_array() {
+        let mut map: HashMap<String, Status> = HashMap::new();
+        map.insert("a".to_string(), Status::Initialised);
+        map.insert("b".to_string(), Status::InProgress);
+
+        let out = convert_keys_to_array(&map);
+        let expected = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(out, expected);
+    }
+}
+
 fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
     map.keys().cloned().collect()
 }

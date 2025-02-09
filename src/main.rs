@@ -55,7 +55,7 @@ fn get_data_from_db(client: &mut Client, ids: &[String]) -> Result<HashMap<Strin
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{convert_keys_to_array, Status};
+    use crate::{compare_and_update, convert_keys_to_array, Status};
 
     #[test]
     fn test_convert_keys_to_array() {
@@ -63,9 +63,24 @@ mod tests {
         map.insert("a".to_string(), Status::Initialised);
         map.insert("b".to_string(), Status::InProgress);
 
-        let out = convert_keys_to_array(&map);
+        let mut out = convert_keys_to_array(&map);
+        out.sort();
         let expected = vec!["a".to_string(), "b".to_string()];
         assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_compare_and_update() {
+        let mut cache: HashMap<String, Status> = HashMap::new();
+        cache.insert("a".to_string(), Status::Initialised);
+        cache.insert("b".to_string(), Status::InProgress);
+
+        let new_key = "c".to_string();
+        let new_value = Status::InProgress;
+
+        compare_and_update(&mut cache, &new_key, &new_value);
+
+        assert_eq!(cache.contains_key(&new_key), true);
     }
 }
 

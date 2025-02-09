@@ -55,60 +55,66 @@ fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
     map.keys().cloned().collect()
 }
 
+fn compare_and_update(cache: &mut HashMap<String, Status>, new_key: &String, new_value: &Status) {
+    if cache.contains_key(new_key) {
+        let existing_value = cache.get(new_key).copied().unwrap();
+        if *new_value == existing_value {
+            println!("key {} matches, doing nothing", new_key);
+            return;
+        }
+
+        println!("{} changed to {}", new_key, new_value.to_str());
+        match *new_value {
+            Status::Initialised => {
+                println!("changing {} in cache to {}", new_key, new_value.to_str());
+                cache.insert(new_key.clone(), new_value.clone());
+            }
+            Status::InProgress => {
+                println!("changing {} in cache to {}", new_key, new_value.to_str());
+                cache.insert(new_key.clone(), new_value.clone());
+
+                // Run mock side-effect for thing in progress
+                println!("doing a thing for {}", new_key)
+            }
+            Status::Finished => {
+                println!("removing {} from cache", new_key);
+                cache.remove(new_key);
+            }
+            Status::Unknown => {
+                println!("unknown value in db, ignoring")
+            }
+        }
+        return;
+    }
+
+    println!("{} identified in state {}", new_key, new_value.to_str());
+    match *new_value {
+        Status::Initialised => {
+            println!("inserting {} as {}", new_key, new_value.to_str());
+            cache.insert(new_key.clone(), new_value.clone());
+        }
+        Status::InProgress => {
+            println!("inserting {} as {}", new_key, new_value.to_str());
+            cache.insert(new_key.clone(), new_value.clone());
+
+            // Run mock side-effect for thing in progress
+            println!("doing a thing for {}", new_key)
+        }
+        Status::Finished => {
+            println!("{} is set to Finished, can ignore", new_key);
+        }
+        Status::Unknown => {
+            println!("unknown value in db, ignoring");
+        }
+    }
+}
+
 fn update_cache(cache: &mut HashMap<String, Status>, client: &mut Client) {
     let known_ids = convert_keys_to_array(&cache);
     match get_data_from_db(client, &known_ids) {
         Ok(db_results) => {
             for (k, v) in &db_results {
-                if cache.contains_key(k) {
-                    let existing_value = cache.get(k).copied().unwrap();
-                    if *v == existing_value {
-                        println!("key {} matches, doing nothing", k);
-                    } else {
-                        println!("{} changed to {}", k, v.to_str());
-                        match *v {
-                            Status::Initialised => {
-                                println!("changing {} in cache to {}", k, v.to_str());
-                                cache.insert(k.clone(), v.clone());
-                            }
-                            Status::InProgress => {
-                                println!("changing {} in cache to {}", k, v.to_str());
-                                cache.insert(k.clone(), v.clone());
-
-                                // Run mock side-effect for thing in progress
-                                println!("doing a thing for {}", k)
-                            }
-                            Status::Finished => {
-                                println!("removing {} from cache", k);
-                                cache.remove(k);
-                            }
-                            Status::Unknown => {
-                                println!("unknown value in db, ignoring")
-                            }
-                        }
-                    }
-                } else {
-                    println!("{} identified in state {}", k, v.to_str());
-                    match *v {
-                        Status::Initialised => {
-                            println!("inserting {} as {}", k, v.to_str());
-                            cache.insert(k.clone(), v.clone());
-                        }
-                        Status::InProgress => {
-                            println!("inserting {} as {}", k, v.to_str());
-                            cache.insert(k.clone(), v.clone());
-
-                            // Run mock side-effect for thing in progress
-                            println!("doing a thing for {}", k)
-                        }
-                        Status::Finished => {
-                            println!("{} is set to Finished, can ignore", k);
-                        }
-                        Status::Unknown => {
-                            println!("unknown value in db, ignoring");
-                        }
-                    }
-                }
+                compare_and_update(cache, k, v);
             }
         }
         Err(e) => {

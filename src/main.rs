@@ -81,7 +81,8 @@ fn compare_and_update(cache: &mut HashMap<String, Status>, new_key: &String, new
                 cache.remove(new_key);
             }
             Status::Unknown => {
-                println!("unknown value in db, ignoring")
+                // Shouldn't happen due to DB query and not storing Unknown in cache
+                println!("unknown value in db, ignoring");
             }
         }
         return;
@@ -100,10 +101,14 @@ fn compare_and_update(cache: &mut HashMap<String, Status>, new_key: &String, new
             // Run mock side-effect for thing in progress
             println!("doing a thing for {}", new_key)
         }
+
         Status::Finished => {
+            // Shouldn't happen as we're not retrieving rows with status Finished
+            // in DB query if we don't already have the key in the cache
             println!("{} is set to Finished, can ignore", new_key);
         }
         Status::Unknown => {
+            // Shouldn't happen due to DB query and not storing Unknown in cache
             println!("unknown value in db, ignoring");
         }
     }

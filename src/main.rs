@@ -1,32 +1,12 @@
+mod cache;
+mod map;
+mod status;
+
+use cache::compare_and_update;
+use map::convert_keys_to_array;
 use postgres::{Client, Error, NoTls};
+use status::Status;
 use std::{collections::HashMap, thread::sleep, time::Duration};
-
-#[derive(Clone, Copy, PartialEq)]
-enum Status {
-    Initialised,
-    InProgress,
-    Finished,
-    Unknown,
-}
-
-impl Status {
-    fn from_str(status: &str) -> Status {
-        match status.to_lowercase().as_str() {
-            "initialised" => Status::Initialised,
-            "inprogress" => Status::InProgress,
-            "finished" => Status::Finished,
-            _ => Status::Unknown,
-        }
-    }
-    fn to_str(&self) -> &'static str {
-        match *self {
-            Status::Initialised => "Initialised",
-            Status::InProgress => "InProgress",
-            Status::Finished => "Finished",
-            Status::Unknown => "Unknown",
-        }
-    }
-}
 
 fn get_data_from_db(client: &mut Client, ids: &[String]) -> Result<HashMap<String, Status>, Error> {
     // Create map to store the stuff
@@ -49,104 +29,6 @@ fn get_data_from_db(client: &mut Client, ids: &[String]) -> Result<HashMap<Strin
     println!("found {} relevant rows", counter);
 
     Ok(status_map)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use crate::{compare_and_update, convert_keys_to_array, Status};
-
-    #[test]
-    fn test_convert_keys_to_array() {
-        let mut map: HashMap<String, Status> = HashMap::new();
-        map.insert("a".to_string(), Status::Initialised);
-        map.insert("b".to_string(), Status::InProgress);
-
-        let out = convert_keys_to_array(&map);
-        let expected = vec!["a".to_string(), "b".to_string()];
-        assert_eq!(out, expected);
-    }
-
-    #[test]
-    fn test_compare_and_update() {
-        let mut cache: HashMap<String, Status> = HashMap::new();
-        cache.insert("a".to_string(), Status::Initialised);
-        cache.insert("b".to_string(), Status::InProgress);
-
-        let new_key = "c".to_string();
-        let new_value = Status::InProgress;
-
-        compare_and_update(&mut cache, &new_key, &new_value);
-
-        assert_eq!(cache.contains_key(&new_key), true);
-    }
-}
-
-fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
-    let mut out: Vec<String> = map.keys().cloned().collect();
-    out.sort();
-
-    out
-}
-
-fn compare_and_update(cache: &mut HashMap<String, Status>, new_key: &String, new_value: &Status) {
-    if cache.contains_key(new_key) {
-        let existing_value = cache.get(new_key).copied().unwrap();
-        if *new_value == existing_value {
-            println!("key {} matches, doing nothing", new_key);
-            return;
-        }
-
-        println!("{} changed to {}", new_key, new_value.to_str());
-        match *new_value {
-            Status::Initialised => {
-                println!("changing {} in cache to {}", new_key, new_value.to_str());
-                cache.insert(new_key.clone(), new_value.clone());
-            }
-            Status::InProgress => {
-                println!("changing {} in cache to {}", new_key, new_value.to_str());
-                cache.insert(new_key.clone(), new_value.clone());
-
-                // Run mock side-effect for thing in progress
-                println!("doing a thing for {}", new_key)
-            }
-            Status::Finished => {
-                println!("removing {} from cache", new_key);
-                cache.remove(new_key);
-            }
-            Status::Unknown => {
-                // Shouldn't happen due to DB query and not storing Unknown in cache
-                println!("unknown value in db, ignoring");
-            }
-        }
-        return;
-    }
-
-    println!("{} identified in state {}", new_key, new_value.to_str());
-    match *new_value {
-        Status::Initialised => {
-            println!("inserting {} as {}", new_key, new_value.to_str());
-            cache.insert(new_key.clone(), new_value.clone());
-        }
-        Status::InProgress => {
-            println!("inserting {} as {}", new_key, new_value.to_str());
-            cache.insert(new_key.clone(), new_value.clone());
-
-            // Run mock side-effect for thing in progress
-            println!("doing a thing for {}", new_key)
-        }
-
-        Status::Finished => {
-            // Shouldn't happen as we're not retrieving rows with status Finished
-            // in DB query if we don't already have the key in the cache
-            println!("{} is set to Finished, can ignore", new_key);
-        }
-        Status::Unknown => {
-            // Shouldn't happen due to DB query and not storing Unknown in cache
-            println!("unknown value in db, ignoring");
-        }
-    }
 }
 
 fn update_cache(cache: &mut HashMap<String, Status>, client: &mut Client) {

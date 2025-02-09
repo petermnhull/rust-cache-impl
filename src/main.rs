@@ -55,6 +55,68 @@ fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
     map.keys().cloned().collect()
 }
 
+fn update_cache(cache: &mut HashMap<String, Status>, client: &mut Client) {
+    let known_ids = convert_keys_to_array(&cache);
+    match get_data_from_db(client, &known_ids) {
+        Ok(db_results) => {
+            for (k, v) in &db_results {
+                if cache.contains_key(k) {
+                    let existing_value = cache.get(k).copied().unwrap();
+                    if *v == existing_value {
+                        println!("key {} matches, doing nothing", k);
+                    } else {
+                        println!("{} changed to {}", k, v.to_str());
+                        match *v {
+                            Status::Initialised => {
+                                println!("changing {} in cache to {}", k, v.to_str());
+                                cache.insert(k.clone(), v.clone());
+                            }
+                            Status::InProgress => {
+                                println!("changing {} in cache to {}", k, v.to_str());
+                                cache.insert(k.clone(), v.clone());
+
+                                // Run mock side-effect for thing in progress
+                                println!("doing a thing for {}", k)
+                            }
+                            Status::Finished => {
+                                println!("removing {} from cache", k);
+                                cache.remove(k);
+                            }
+                            Status::Unknown => {
+                                println!("unknown value in db, ignoring")
+                            }
+                        }
+                    }
+                } else {
+                    println!("{} identified in state {}", k, v.to_str());
+                    match *v {
+                        Status::Initialised => {
+                            println!("inserting {} as {}", k, v.to_str());
+                            cache.insert(k.clone(), v.clone());
+                        }
+                        Status::InProgress => {
+                            println!("inserting {} as {}", k, v.to_str());
+                            cache.insert(k.clone(), v.clone());
+
+                            // Run mock side-effect for thing in progress
+                            println!("doing a thing for {}", k)
+                        }
+                        Status::Finished => {
+                            println!("{} is set to Finished, can ignore", k);
+                        }
+                        Status::Unknown => {
+                            println!("unknown value in db, ignoring");
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("failed to get data from db: {}", e)
+        }
+    }
+}
+
 fn main() -> Result<(), Error> {
     println!("starting to check cache and stay up to date");
 
@@ -70,65 +132,7 @@ fn main() -> Result<(), Error> {
         sleep(Duration::from_secs(2));
         println!("starting");
 
-        let known_ids = convert_keys_to_array(&cache);
-        match get_data_from_db(&mut client, &known_ids) {
-            Ok(db_results) => {
-                for (k, v) in &db_results {
-                    if cache.contains_key(k) {
-                        let existing_value = cache.get(k).copied().unwrap();
-                        if *v == existing_value {
-                            println!("key {} matches, doing nothing", k);
-                        } else {
-                            println!("{} changed to {}", k, v.to_str());
-                            match *v {
-                                Status::Initialised => {
-                                    println!("changing {} in cache to {}", k, v.to_str());
-                                    cache.insert(k.clone(), v.clone());
-                                }
-                                Status::InProgress => {
-                                    println!("changing {} in cache to {}", k, v.to_str());
-                                    cache.insert(k.clone(), v.clone());
-
-                                    // Run mock side-effect for thing in progress
-                                    println!("doing a thing for {}", k)
-                                }
-                                Status::Finished => {
-                                    println!("removing {} from cache", k);
-                                    cache.remove(k);
-                                }
-                                Status::Unknown => {
-                                    println!("unknown value in db, ignoring")
-                                }
-                            }
-                        }
-                    } else {
-                        println!("{} identified in state {}", k, v.to_str());
-                        match *v {
-                            Status::Initialised => {
-                                println!("inserting {} as {}", k, v.to_str());
-                                cache.insert(k.clone(), v.clone());
-                            }
-                            Status::InProgress => {
-                                println!("inserting {} as {}", k, v.to_str());
-                                cache.insert(k.clone(), v.clone());
-
-                                // Run mock side-effect for thing in progress
-                                println!("doing a thing for {}", k)
-                            }
-                            Status::Finished => {
-                                println!("{} is set to Finished, can ignore", k);
-                            }
-                            Status::Unknown => {
-                                println!("unknown value in db, ignoring");
-                            }
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                println!("failed to get data from db: {}", e)
-            }
-        }
+        update_cache(&mut cache, &mut client);
     }
 
     println!("completing");

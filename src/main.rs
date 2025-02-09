@@ -63,8 +63,7 @@ mod tests {
         map.insert("a".to_string(), Status::Initialised);
         map.insert("b".to_string(), Status::InProgress);
 
-        let mut out = convert_keys_to_array(&map);
-        out.sort();
+        let out = convert_keys_to_array(&map);
         let expected = vec!["a".to_string(), "b".to_string()];
         assert_eq!(out, expected);
     }
@@ -85,7 +84,10 @@ mod tests {
 }
 
 fn convert_keys_to_array(map: &HashMap<String, Status>) -> Vec<String> {
-    map.keys().cloned().collect()
+    let mut out: Vec<String> = map.keys().cloned().collect();
+    out.sort();
+
+    out
 }
 
 fn compare_and_update(cache: &mut HashMap<String, Status>, new_key: &String, new_value: &Status) {
